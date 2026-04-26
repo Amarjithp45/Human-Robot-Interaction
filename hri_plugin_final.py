@@ -1,43 +1,3 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# HRI Python Plugin — Finger Intention Recognition
-# Course   : EE653 Human-Robot Interaction
-# Simulator: https://hri-sim2.jahanzebgul.com/
-# ─────────────────────────────────────────────────────────────────────────────
-#
-# HRI PROBLEM:
-#   How can a human clearly and safely communicate to a robot
-#   which operation to perform using only hand gestures?
-#
-# SYSTEM DESIGN:
-#   1. PERCEPTION        — webcam + MediaPipe reads hand finger data
-#   2. INTENTION EQUATION— combines finger clarity + stability into a score
-#   3. PLANNING          — only acts when score is high enough
-#   4. ROBOT ACTION      — triggers the correct saved operation
-#   5. FEEDBACK          — debug panel shows live system thinking
-#
-# INTENTION RECOGNITION EQUATION:
-#
-#   intention_score = finger_score × stability_score
-#
-#   finger_score    = how clearly the finger count maps to an operation (0→1)
-#   stability_score = how consistently the gesture has been held (0→1)
-#
-#   The robot only acts when intention_score >= THRESHOLD (0.70)
-#
-#   This is different from simple if/else finger counting because:
-#   - A fleeting gesture gives low stability_score → robot does NOT trigger
-#   - Only a clear, sustained gesture gives high score → robot triggers
-#   - This models real HRI: deliberate intent, not accidental gestures
-#
-# GESTURE → OPERATION MAPPING:
-#   1 finger  → Operation 1
-#   2 fingers → Operation 2
-#   3 fingers → Operation 3
-#   4 fingers → Operation 4
-
-# ─────────────────────────────────────────────────────────────────────────────
-# PLUGIN METADATA
-# ─────────────────────────────────────────────────────────────────────────────
 
 PLUGIN_META = {
     "name": "Finger Intention Recognition",
@@ -48,9 +8,9 @@ PLUGIN_META = {
     ),
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # CONFIGURATION
-# ─────────────────────────────────────────────────────────────────────────────
+
 
 # Minimum intention score to trigger robot (0.0 to 1.0)
 INTENTION_THRESHOLD = 0.70
@@ -61,18 +21,18 @@ REQUIRED_STABLE_FRAMES = 4
 # Milliseconds before the same operation can trigger again
 COOLDOWN_MS = 2000
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # GLOBAL STATE
-# ─────────────────────────────────────────────────────────────────────────────
+
 
 LAST_TRIGGER_AT  = 0
 LAST_TRIGGER_KEY = None
 STABILITY        = {}
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # SETUP — called once when file is uploaded to simulator
-# ─────────────────────────────────────────────────────────────────────────────
+
 
 def setup(payload):
     global LAST_TRIGGER_AT, LAST_TRIGGER_KEY, STABILITY
@@ -85,9 +45,9 @@ def setup(payload):
     }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # HELPER — safely get a saved operation by index
-# ─────────────────────────────────────────────────────────────────────────────
+
 
 def operation_by_index(frame, index):
     saved = frame.get("saved_operations", [])
@@ -96,9 +56,9 @@ def operation_by_index(frame, index):
     return saved[index]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # HELPER — update stability counter
-# ─────────────────────────────────────────────────────────────────────────────
+
 
 def update_stability(key):
     global STABILITY
@@ -106,10 +66,10 @@ def update_stability(key):
     return STABILITY[key]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # SECTION 1 — PERCEPTION
 # Read finger count from hand data
-# ─────────────────────────────────────────────────────────────────────────────
+
 
 def read_finger_count(hand):
     """
@@ -127,9 +87,9 @@ def read_finger_count(hand):
     )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # SECTION 2 — INTENTION RECOGNITION EQUATION
-# ─────────────────────────────────────────────────────────────────────────────
+
 
 def compute_finger_score(count):
     """
@@ -176,10 +136,7 @@ def compute_intention_score(finger_score, stability_score):
     return round(finger_score * stability_score, 3)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # SECTION 3 — PLANNING / DECISION MAKING
-# Should the robot act right now?
-# ─────────────────────────────────────────────────────────────────────────────
 
 def should_trigger(intention_score, op_index, operation, trigger_key, now):
     """
@@ -203,17 +160,15 @@ def should_trigger(intention_score, op_index, operation, trigger_key, now):
     )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # MAIN — process_frame
-# Called every webcam frame by the simulator
-# ─────────────────────────────────────────────────────────────────────────────
+
 
 def process_frame(frame):
     global LAST_TRIGGER_AT, LAST_TRIGGER_KEY, STABILITY
 
     now = frame.get("timestamp_ms", 0)
 
-    # ── PERCEPTION: is there a hand? ─────────────────────────────────────────
+
     hand = frame.get("primary_hand")
     if not hand:
         STABILITY        = {}
@@ -228,36 +183,36 @@ def process_frame(frame):
             ],
         }
 
-    # ── PERCEPTION: read finger count ────────────────────────────────────────
+    #  read finger count 
     hand_label = hand.get("handedness") or hand.get("viewerSide") or "Unknown"
     count      = read_finger_count(hand)
 
-    # ── INTENTION EQUATION: finger score ─────────────────────────────────────
+    #  INTENTION EQUATION: finger score 
     finger_score, op_index = compute_finger_score(count)
 
-    # ── INTENTION EQUATION: stability score ──────────────────────────────────
+    # INTENTION EQUATION: stability score
     stability_key = f"{hand_label}:{count}"
     stable_frames = update_stability(stability_key)
     stability_score = compute_stability_score(stable_frames)
 
-    # ── INTENTION EQUATION: final score ──────────────────────────────────────
+    # INTENTION EQUATION: final score 
     intention_score = compute_intention_score(finger_score, stability_score)
 
-    # ── PLANNING: fetch operation ─────────────────────────────────────────────
+    # PLANNING: fetch operation 
     operation   = operation_by_index(frame, op_index)
     trigger_key = f"{op_index}:{hand_label}"
 
-    # ── PLANNING: decide whether to trigger ──────────────────────────────────
+    # PLANNING: decide whether to trigger 
     trigger = should_trigger(intention_score, op_index, operation, trigger_key, now)
 
     if trigger:
         LAST_TRIGGER_AT  = now
         LAST_TRIGGER_KEY = trigger_key
 
-    # ── SECTION 4: ROBOT ACTION ───────────────────────────────────────────────
+    # SECTION 4: ROBOT ACTION 
     # Handled by returning trigger_operation_id to the simulator
 
-    # ── SECTION 5: FEEDBACK ───────────────────────────────────────────────────
+    # SECTION 5: FEEDBACK 
     if trigger and operation:
         status = f"TRIGGERED → {operation['name']} ✅"
     elif op_index is not None and operation:
@@ -272,14 +227,14 @@ def process_frame(frame):
     bar = "█" * bar_filled + "░" * (20 - bar_filled)
 
     return {
-        # ── Robot action ──────────────────────────────────────────────────────
+        # Robot action 
         "label":      status,
         "confidence": intention_score,
         "trigger_operation_id":   operation["id"]   if trigger and operation else None,
         "trigger_operation_name": operation["name"] if trigger and operation else None,
         "cooldown_ms": COOLDOWN_MS,
 
-        # ── Feedback / debug panel ────────────────────────────────────────────
+        # Feedback / debug panel 
         "debug_text": [
             f"PERCEPTION   : {hand_label} hand | {count} finger(s) detected",
             f"FINGER SCORE : {finger_score:.2f}  (how clear is the gesture?)",
